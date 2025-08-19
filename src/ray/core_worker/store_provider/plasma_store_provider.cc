@@ -321,7 +321,7 @@ Status CoreWorkerPlasmaStoreProvider::Get(
     }
 
     int64_t batch_timeout =
-        std::max(RayConfig::instance().get_check_signal_interval_milliseconds(),
+        std::min(RayConfig::instance().get_check_signal_interval_milliseconds(),
                  static_cast<int64_t>(10 * batch_ids.size()));
     if (remaining_timeout >= 0) {
       batch_timeout = std::min(remaining_timeout, batch_timeout);
@@ -351,7 +351,9 @@ Status CoreWorkerPlasmaStoreProvider::Get(
       // are holding the lock for a long time, so it can easily starve inbound RPC
       // requests to Release() buffers which only require holding the lock for brief
       // periods. See https://github.com/ray-project/ray/pull/16402 for more context.
-      std::this_thread::sleep_for(std::chrono::milliseconds(10));
+      int64_t yield_timeout =
+          std::max(RayConfig::instance().get_check_signal_interval_milliseconds(), 10);
+      std::this_thread::sleep_for(std::chrono::milliseconds(yield_timeout));
     }
   }
 
